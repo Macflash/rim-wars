@@ -2,7 +2,6 @@ import { Tile, Action, Direction, IDecision, IUnit, Agent, fromMapToTensor, toSi
 import { tile } from '@tensorflow/tfjs';
 
 export const Sight_Distance = 5;
-
 export const createEmptyMap = (tiles: number): Tile[][] => {
     let map: any[][] = [];
     for (let x = 0; x < tiles; x++) {
@@ -48,7 +47,6 @@ export class Battle {
 
         // take all actions
         decisions.forEach((d, i) => {
-            console.log(d);
             const agent = this.agents[i];
             let dX = 0;
             let dY = 0;
@@ -109,11 +107,26 @@ export class Battle {
 
     public runBattle() {
         // run steps until someone is dead or some time limit is reached
-        for(var i = 0; i < 20; i++){
+        for(var i = 0; i < 25; i++){
             this.runOneStep();
         }
 
         // get the winners
+        var maxScore = 0;
+        var max = this.agents[0];
+        this.agents.forEach(agent => {
+            var score = 0;
+            score += agent.damageDealt * 5;
+            score += agent.distanceMoved;
+            score -= agent.failedActions;
+            if(score > maxScore){
+                max = agent;
+                maxScore = score;
+            }
+        });
+
+        console.log("Max score: " + maxScore);
+        return max;
     }
 }
 

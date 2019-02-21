@@ -2,37 +2,12 @@ import React, { Component } from 'react';
 import './App.css';
 
 import * as tf from '@tensorflow/tfjs';
-import { Tile, Action, Direction, IDecision, IUnit, Agent } from './agent';
-import { Battle } from './arena';
+import { Tile, Action, Direction, IDecision, IUnit, Agent, createModel } from './agent';
+import { Battle, Sight_Distance } from './arena';
 
 interface IAppState {
   terrainCanvas?: HTMLCanvasElement;
   playerCanvas?: HTMLCanvasElement;
-}
-
-var createModel = () => {
-  const model = tf.sequential();
-  model.add(tf.layers.conv2d({
-    inputShape: [10, 10, 5],
-    kernelSize: 5,
-    filters: 8,
-    strides: 1,
-    activation: 'relu',
-    kernelInitializer: "VarianceScaling",
-  }));
-  model.add(tf.layers.maxPooling2d({
-    poolSize: [2, 2],
-    strides: [2, 2],
-  }));
-  // flatten then use dense to classify
-  model.add(tf.layers.flatten());
-  model.add(tf.layers.dense({
-    units: 7,
-    kernelInitializer: 'VarianceScaling',
-    activation: 'softmax'
-  }));
-
-  return model;
 }
 
 class App extends Component<{}, IAppState> {
@@ -57,10 +32,6 @@ class App extends Component<{}, IAppState> {
 
   componentDidUpdate() {
     if (this.playerCtx && this.terrainCtx) {
-      const map = this.createEmptyMap(this.tiles);
-      map[1][1] = Tile.Wall;
-      map[3][5] = Tile.Team1;
-      map[18][13] = Tile.Team2;
       this.drawTerrain(this.battle.map, this.terrainCtx);
     }
   }
@@ -102,28 +73,29 @@ class App extends Component<{}, IAppState> {
     }
   }
 
+  private runBattles(x: number){
+    for(var i = 0; i < x; i++){
+      this.runBattle();
+    }
+  }
+
+  private runBattle(){
+    var winner = new Agent(this.battle.runBattle().model);
+    var new1 = winner.mutate();
+    var new2 = winner.mutate();
+    var new3 = winner.mutate();
+
+    winner.team = 1;
+    new1.team = 1;
+    new2.team = 0;
+    new3.team = 0;
+
+    this.battle = new Battle([winner, new1, new2, new3], 20);
+  }
+
   private tensorTest(ctx: CanvasRenderingContext2D) {
     this.battle.runOneStep();
     this.drawTerrain(this.battle.map, ctx);
-
-
-    /*
-    // very simply add some value to the weights
-    // this could be useful to add some noise during each GENERATION
-    let lastLayer = model.layers[model.layers.length-1];
-    lastLayer.weights[0].read().print();
-
-    const weights = model.weights;
-    model.setWeights(weights.map(w => w.read().add(.1)));
-
-    lastLayer = model.layers[model.layers.length-1];
-    var weightTensor = lastLayer.weights[0].read();
-    var array = weightTensor.array().then(arr => console.log("array", arr));
-
-    const result = model.predict(t.expandDims(0));
-    console.log("result", result);
-    tf.print(result as any);
-    */
   }
 
 
@@ -158,9 +130,16 @@ class App extends Component<{}, IAppState> {
           id="playerCanvas"
           ref={this.setPlayerCanvas}
         />
-        <div><button onClick={() => {
-          this.battle.runOneStep();
-           this.drawTerrain(this.battle.map, this.terrainCtx!)}}>Run step</button></div>
+        <div>
+          <button onClick={() => {
+            this.battle.runOneStep();
+            this.drawTerrain(this.battle.map, this.terrainCtx!)
+          }}>Run step</button>
+          
+          <button onClick={this.runBattle}>Run Battle</button>
+
+          <button onClick={()=>{this.runBattles(500);}}>Run 500 Battles</button>
+        </div>
       </div>
     );
   }

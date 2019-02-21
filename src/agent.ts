@@ -1,5 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
 import { Sequential } from '@tensorflow/tfjs';
+import { Sight_Distance } from './arena';
 
 export enum Tile {
     Empty,
@@ -46,11 +47,11 @@ export var toSightLine = (map: Tile[][], x: number, y: number, sightDistance: nu
             var curY = y + j - sightDistance;
 
             var tile: Tile = Tile.Wall;
-            if(curX == x && curY == y){
+            if (curX == x && curY == y) {
                 tile = Tile.Empty;
             }
-            else if(curX > 0 && curX < (map.length - 1)
-            && curY > 0 && curY < (map[curX].length - 1)){
+            else if (curX > 0 && curX < (map.length - 1)
+                && curY > 0 && curY < (map[curX].length - 1)) {
                 tile = map[curX][curY];
             }
 
@@ -73,6 +74,31 @@ var toTensor = (map: Tile[][]) => {
     return tf.tensor3d(map.map(row => row.map(toVector))).expandDims(0);
 }
 
+export const createModel = () => {
+    const model = tf.sequential();
+    model.add(tf.layers.conv2d({
+      inputShape: [Sight_Distance * 2, Sight_Distance * 2, 5],
+      kernelSize: 5,
+      filters: 8,
+      strides: 1,
+      activation: 'relu',
+      kernelInitializer: "VarianceScaling",
+    }));
+    model.add(tf.layers.maxPooling2d({
+      poolSize: [2, 2],
+      strides: [2, 2],
+    }));
+    // flatten then use dense to classify
+    model.add(tf.layers.flatten());
+    model.add(tf.layers.dense({
+      units: 7,
+      kernelInitializer: 'VarianceScaling',
+      activation: 'softmax'
+    }));
+  
+    return model;
+  }
+
 export class Agent implements IUnit {
     public team = 1;
     public damageDealt = 0;
@@ -88,14 +114,20 @@ export class Agent implements IUnit {
         //var t = tf.tensor1d([1, 2, 3]);
     }
 
+    mutate() {
+        const scale = .01;
+        const originalWeights = this.model.getWeights(false);
+        var newModel = createModel();
+        newModel.setWeights(originalWeights.map(o => o.add(tf.randomNormal(o.shape).mul(scale))));
+        return new Agent(newModel);
+    }
+
     decideMove(sightLine: Tile[][]): IDecision {
         const result = this.model.predict(toTensor(sightLine));
         const resultVar = tf.variable(result as any);
-        resultVar.print();
+        //resultVar.print();
 
         var resultArray = resultVar.arraySync() as number[];
-        console.log(resultArray);
-
         var decision = {} as IDecision;
 
         // decide direction
@@ -118,8 +150,6 @@ export class Agent implements IUnit {
         if (resultArray[Action.Melee] > resultArray[decision.action]) {
             decision.action = Action.Melee;
         }
-
-        console.log("decision", decision)
 
         return decision;
     }
