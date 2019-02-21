@@ -74,6 +74,10 @@ var toTensor = (map: Tile[][]) => {
 }
 
 export class Agent implements IUnit {
+    public team = 1;
+    public damageDealt = 0;
+    public distanceMoved = 0;
+    public failedActions = 0;
     public x = 0;
     public y = 0;
     public health = 3;
@@ -81,7 +85,7 @@ export class Agent implements IUnit {
 
     constructor(model: Sequential) {
         this.model = model;
-        var t = tf.tensor1d([1, 2, 3]);
+        //var t = tf.tensor1d([1, 2, 3]);
     }
 
     decideMove(sightLine: Tile[][]): IDecision {

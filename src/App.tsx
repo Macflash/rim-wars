@@ -3,13 +3,40 @@ import './App.css';
 
 import * as tf from '@tensorflow/tfjs';
 import { Tile, Action, Direction, IDecision, IUnit, Agent } from './agent';
+import { Battle } from './arena';
 
 interface IAppState {
   terrainCanvas?: HTMLCanvasElement;
   playerCanvas?: HTMLCanvasElement;
 }
 
+var createModel = () => {
+  const model = tf.sequential();
+  model.add(tf.layers.conv2d({
+    inputShape: [10, 10, 5],
+    kernelSize: 5,
+    filters: 8,
+    strides: 1,
+    activation: 'relu',
+    kernelInitializer: "VarianceScaling",
+  }));
+  model.add(tf.layers.maxPooling2d({
+    poolSize: [2, 2],
+    strides: [2, 2],
+  }));
+  // flatten then use dense to classify
+  model.add(tf.layers.flatten());
+  model.add(tf.layers.dense({
+    units: 7,
+    kernelInitializer: 'VarianceScaling',
+    activation: 'softmax'
+  }));
+
+  return model;
+}
+
 class App extends Component<{}, IAppState> {
+  private battle: Battle;
   private size = 600;
   private tiles = 20;
   private terrainCtx?: CanvasRenderingContext2D;
@@ -18,6 +45,14 @@ class App extends Component<{}, IAppState> {
   constructor(props: any) {
     super(props);
     this.state = {};
+
+    var a = new Agent(createModel());
+    var b = new Agent(createModel());
+
+    a.team = 1;
+    b.team = 2;
+
+    this.battle = new Battle([a, b], 20);
   }
 
   componentDidUpdate() {
@@ -26,8 +61,7 @@ class App extends Component<{}, IAppState> {
       map[1][1] = Tile.Wall;
       map[3][5] = Tile.Team1;
       map[18][13] = Tile.Team2;
-      this.drawTerrain(map, this.terrainCtx);
-      this.tensorTest(map);
+      this.drawTerrain(this.battle.map, this.terrainCtx);
     }
   }
 
@@ -68,32 +102,10 @@ class App extends Component<{}, IAppState> {
     }
   }
 
-  private tensorTest(map: Tile[][]) {
-    var sightRange = 5;
-    
-    const model = tf.sequential();
-    model.add(tf.layers.conv2d({
-      inputShape: [20, 20, 5],
-      kernelSize: 5,
-      filters: 8,
-      strides: 1,
-      activation: 'relu',
-      kernelInitializer: "VarianceScaling",
-    }));
-    model.add(tf.layers.maxPooling2d({
-      poolSize: [2, 2],
-      strides: [2, 2],
-    }));
-    // flatten then use dense to classify
-    model.add(tf.layers.flatten());
-    model.add(tf.layers.dense({
-      units: 7,
-      kernelInitializer: 'VarianceScaling',
-      activation: 'softmax'
-    }));
+  private tensorTest(ctx: CanvasRenderingContext2D) {
+    this.battle.runOneStep();
+    this.drawTerrain(this.battle.map, ctx);
 
-    var a = new Agent(model);
-    var decision = a.decideMove(map);
 
     /*
     // very simply add some value to the weights
@@ -133,19 +145,22 @@ class App extends Component<{}, IAppState> {
     return (
       <div>
         <canvas
-          style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
+          style={{ position: "absolute", top: 40, left: 0, zIndex: 1 }}
           height={this.size}
           width={this.size}
           id="terrainCanvas"
           ref={this.setTerrainCanvas}
         />
         <canvas
-          style={{ position: "absolute", top: 0, left: 0, zIndex: 2 }}
+          style={{ position: "absolute", top: 40, left: 0, zIndex: 2 }}
           height={this.size}
           width={this.size}
           id="playerCanvas"
           ref={this.setPlayerCanvas}
         />
+        <div><button onClick={() => {
+          this.battle.runOneStep();
+           this.drawTerrain(this.battle.map, this.terrainCtx!)}}>Run step</button></div>
       </div>
     );
   }
