@@ -2,24 +2,7 @@ import React, { Component } from 'react';
 import './App.css';
 
 import * as tf from '@tensorflow/tfjs';
-
-enum Tile {
-  Empty,
-  Wall,
-  Team1,
-  Team2
-}
-
-enum Actions {
-  Left,
-  Right,
-  Up,
-  Down,
-
-  Wait,
-  Move,
-  Attack,
-}
+import { Tile, Action, Direction, IDecision, IUnit, Agent } from './agent';
 
 interface IAppState {
   terrainCanvas?: HTMLCanvasElement;
@@ -87,12 +70,8 @@ class App extends Component<{}, IAppState> {
 
   private tensorTest(map: Tile[][]) {
     var sightRange = 5;
-    const t = tf.tidy(() => {
-      return tf.tensor3d(map.map(row => row.map(this.toVector)));
-    });
-
+    
     const model = tf.sequential();
-
     model.add(tf.layers.conv2d({
       inputShape: [20, 20, 5],
       kernelSize: 5,
@@ -101,26 +80,10 @@ class App extends Component<{}, IAppState> {
       activation: 'relu',
       kernelInitializer: "VarianceScaling",
     }));
-
     model.add(tf.layers.maxPooling2d({
       poolSize: [2, 2],
       strides: [2, 2],
     }));
-
-    // lets do that again
-    model.add(tf.layers.conv2d({
-      kernelSize: 5,
-      filters: 16,
-      strides: 1,
-      activation: 'relu',
-      kernelInitializer: 'VarianceScaling'
-    }));
-    
-    model.add(tf.layers.maxPooling2d({
-      poolSize: [2, 2],
-      strides: [2, 2]
-    }));
-
     // flatten then use dense to classify
     model.add(tf.layers.flatten());
     model.add(tf.layers.dense({
@@ -129,6 +92,10 @@ class App extends Component<{}, IAppState> {
       activation: 'softmax'
     }));
 
+    var a = new Agent(model);
+    var decision = a.decideMove(map);
+
+    /*
     // very simply add some value to the weights
     // this could be useful to add some noise during each GENERATION
     let lastLayer = model.layers[model.layers.length-1];
@@ -138,19 +105,15 @@ class App extends Component<{}, IAppState> {
     model.setWeights(weights.map(w => w.read().add(.1)));
 
     lastLayer = model.layers[model.layers.length-1];
-    lastLayer.weights[0].read().print();
+    var weightTensor = lastLayer.weights[0].read();
+    var array = weightTensor.array().then(arr => console.log("array", arr));
 
     const result = model.predict(t.expandDims(0));
     console.log("result", result);
     tf.print(result as any);
+    */
   }
 
-  private toVector(tile: Tile): number[] {
-    const length = 5;
-    const arr = new Array<number>(5);
-    arr[tile] = 1;
-    return arr;
-  }
 
   private setPlayerCanvas = (playerCanvas: HTMLCanvasElement | null) => {
     if (playerCanvas && !this.state.playerCanvas) {
