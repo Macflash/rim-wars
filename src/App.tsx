@@ -13,7 +13,7 @@ interface IAppState {
 class App extends Component<{}, IAppState> {
   private battle: Battle;
   private size = 600;
-  private tiles = 20;
+  private tiles = 10;
   private terrainCtx?: CanvasRenderingContext2D;
   private playerCtx?: CanvasRenderingContext2D;
 
@@ -27,7 +27,7 @@ class App extends Component<{}, IAppState> {
     a.team = 1;
     b.team = 2;
 
-    this.battle = new Battle([a, b], 20);
+    this.battle = new Battle([a, b], this.tiles);
   }
 
   componentDidUpdate() {
@@ -75,12 +75,21 @@ class App extends Component<{}, IAppState> {
 
   private runBattles(x: number){
     for(var i = 0; i < x; i++){
-      this.runBattle();
+      if(this.runBattle(i == x - 1)){
+        console.log("woah!");
+        break;
+      }
     }
   }
 
-  private runBattle(){
-    var winner = new Agent(this.battle.runBattle().model);
+  private rematch = () => {
+    this.battle = new Battle(this.battle.agents, this.tiles);
+  }
+
+  private newMatch = () => {
+    var best = this.battle.runBattle();
+
+    var winner = new Agent(best.model);
     var new1 = winner.mutate();
     var new2 = winner.mutate();
     var new3 = winner.mutate();
@@ -90,7 +99,34 @@ class App extends Component<{}, IAppState> {
     new2.team = 0;
     new3.team = 0;
 
-    this.battle = new Battle([winner, new1, new2, new3], 20);
+    this.battle = new Battle([winner, new1, new2, new3], this.tiles);
+    this.drawTerrain(this.battle.map, this.terrainCtx!);
+  }
+
+  private runBattle = (draw?: boolean) => {
+    var best = this.battle.runBattle();
+
+    if(best.bestScore > 10){
+      console.log("hey!");
+      return true;
+    }
+
+    var winner = new Agent(best.model);
+    var new1 = winner.mutate();
+    var new2 = winner.mutate();
+    var new3 = winner.mutate();
+
+    winner.team = 1;
+    new1.team = 1;
+    new2.team = 0;
+    new3.team = 0;
+
+    if(draw){
+      this.drawTerrain(this.battle.map, this.terrainCtx!);
+    }
+
+    this.battle = new Battle([winner, new1, new2, new3], this.tiles);
+    return false;
   }
 
   private tensorTest(ctx: CanvasRenderingContext2D) {
@@ -136,8 +172,12 @@ class App extends Component<{}, IAppState> {
             this.drawTerrain(this.battle.map, this.terrainCtx!)
           }}>Run step</button>
           
-          <button onClick={this.runBattle}>Run Battle</button>
+          <button onClick={()=>{this.rematch()}}>Rematch</button>
+          <button onClick={()=>{this.newMatch()}}>new match</button>
+          <button onClick={()=>{this.runBattle(true)}}>Run Battle</button>
 
+          <button onClick={()=>{this.runBattles(10);}}>Run 10 Battles</button>
+          <button onClick={()=>{this.runBattles(100);}}>Run 100 Battles</button>
           <button onClick={()=>{this.runBattles(500);}}>Run 500 Battles</button>
         </div>
       </div>

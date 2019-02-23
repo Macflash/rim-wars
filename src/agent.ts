@@ -76,18 +76,21 @@ var toTensor = (map: Tile[][]) => {
 
 export const createModel = () => {
     const model = tf.sequential();
+    
     model.add(tf.layers.conv2d({
       inputShape: [Sight_Distance * 2, Sight_Distance * 2, 5],
-      kernelSize: 5,
-      filters: 8,
+      kernelSize: 1,
+      filters: 1,
       strides: 1,
       activation: 'relu',
       kernelInitializer: "VarianceScaling",
     }));
+    /*
     model.add(tf.layers.maxPooling2d({
       poolSize: [2, 2],
       strides: [2, 2],
     }));
+    */
     // flatten then use dense to classify
     model.add(tf.layers.flatten());
     model.add(tf.layers.dense({
@@ -107,6 +110,7 @@ export class Agent implements IUnit {
     public x = 0;
     public y = 0;
     public health = 3;
+    public bestScore = 0;
     public model: Sequential;
 
     constructor(model: Sequential) {
@@ -115,10 +119,17 @@ export class Agent implements IUnit {
     }
 
     mutate() {
-        const scale = .01;
-        const originalWeights = this.model.getWeights(false);
+        const mutationChance = .1;
+        const scale = .3;
+        var o0 = this.model.layers[0].getWeights();
+        var o1 = this.model.layers[1].getWeights();
+        var o2 = this.model.layers[2].getWeights();
+
         var newModel = createModel();
-        newModel.setWeights(originalWeights.map(o => o.add(tf.randomNormal(o.shape).mul(scale))));
+        //newModel.layers[0].setWeights(o0.map(o => o.add(tf.randomNormal(o.shape).log())));
+        //newModel.layers[1].setWeights(o1.map(o => o.add(tf.randomNormal(o.shape).log())));
+        newModel.layers[2].setWeights(o2.map(o => o.add(tf.randomNormal(o.shape).mul(scale))));
+
         return new Agent(newModel);
     }
 
@@ -127,7 +138,8 @@ export class Agent implements IUnit {
         const resultVar = tf.variable(result as any);
         //resultVar.print();
 
-        var resultArray = resultVar.arraySync() as number[];
+        var resultArray = (resultVar.arraySync() as number[][])[0];
+        //console.log("Result", resultArray);
         var decision = {} as IDecision;
 
         // decide direction
@@ -141,6 +153,8 @@ export class Agent implements IUnit {
         if (resultArray[Direction.Down] > resultArray[decision.direction]) {
             decision.direction = Direction.Down;
         }
+
+        //console.log(decision.direction);
 
         // decide action
         decision.action = Action.Move;

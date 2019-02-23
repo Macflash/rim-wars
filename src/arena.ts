@@ -68,8 +68,8 @@ export class Battle {
             let targetX = agent.x+dX;
             let targetY = agent.y+dY;
 
-            if(targetX < 0 || targetX > this.map.length
-                ||targetY < 0 || targetY > this.map[targetX].length){
+            if(targetX < 0 || targetX >= this.map.length
+                ||targetY < 0 || targetY >= this.map[targetX].length){
                 // bad action, skip the rest
                 agent.failedActions++;
                 return;
@@ -107,7 +107,7 @@ export class Battle {
 
     public runBattle() {
         // run steps until someone is dead or some time limit is reached
-        for(var i = 0; i < 25; i++){
+        for(var i = 0; i < 12; i++){
             this.runOneStep();
         }
 
@@ -123,9 +123,12 @@ export class Battle {
                 max = agent;
                 maxScore = score;
             }
+
+            agent.bestScore = score;
         });
 
         console.log("Max score: " + maxScore);
+
         return max;
     }
 }
